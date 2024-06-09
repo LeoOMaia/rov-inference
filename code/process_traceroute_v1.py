@@ -2,7 +2,7 @@ from collections import defaultdict
 import sys
 import json
 import lib
-import datetime
+import argparse
 
 def in_list(asn, mapping_asn_traces, target_list, dst_ip):
     for trace in mapping_asn_traces[asn]:
@@ -21,123 +21,132 @@ def assert_no_route(asn, mapping_asn_traces, dst_ip):
                         return False
     return True
 
-def classification_list(classification, city):
-    drop_invalid, ignore_roa, prefer_valid, protected = [], [], [], []
+def get_last_classification(dict_classification, city):
 
-    for asn in classification[city]:
-        if classification[city][asn] == "drop-invalid":
-            drop_invalid.append(asn)
-        elif classification[city][asn] == "ignore-roa":
-            ignore_roa.append(asn)
-        elif classification[city][asn] == "prefer-valid":
-            prefer_valid.append(asn)
-        elif classification[city][asn] == "unknown-protected":
-            protected.append(asn)
+    drop_invalid = []
+    ignore_roa = []
+    prefer_valid = []
+    protected = []
+
+    for asn in dict_classification[city]:
+        if dict_classification[city][asn] == "drop-invalid":
+            drop_invalid.append(str(asn))
+        if dict_classification[city][asn] == "ignore-roa":
+            ignore_roa.append(str(asn))
+        if dict_classification[city][asn] == "prefer-valid":
+            prefer_valid.append(str(asn))
+        if dict_classification[city][asn] == "unknown-protected":
+            protected.append(str(asn))
     return drop_invalid, ignore_roa, prefer_valid, protected
 
-def main():
-    # using arguments to specify the file
-    if len(sys.argv) != 4:
-        print("Usage: python3 process_traceroute_v1.py <classification_file> <measurement> <city>")
-        return
+def create_parser():
+    desc = """Process traceroute measurements"""
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument(
+        "--measurement",
+        dest="measurement",
+        action="store",
+        required=True,
+        help="Name of target measurement",
+    )
+    parser.add_argument(
+        "--city",
+        dest="city",
+        action="store",
+        required=True,
+        help="Measurement location",
+    )
+    return parser
 
-    classification_file, measurement, city = sys.argv[1], sys.argv[2], sys.argv[3]
+
+def main():
+
+    P2 = "138.185.228.1"
+    P3 = "138.185.231.1"
+    P4 = "138.185.229.1"
+    P5 = "138.185.230.1"
+
+    parser = create_parser()
+    opts = parser.parse_args()
 
     with open("../config.json", "r") as config_f:
         config = json.load(config_f)
 
     # time for mapping basing in the choosed city
-    start_time = config[measurement][city]["start"]
-    end_time = config[measurement][city]["end"]
+    start_time = config[opts.measurement]["location"][opts.city]["start"]
+    end_time = config[opts.measurement]["location"][opts.city]["end"]
+    traceroute_file = config[opts.measurement]["traceroute_file"]
 
-    # traceroute for mapping
-    if city in config[measurement]:
-        if not "traceroute" in config[measurement]:
-            print("Traceroute file not defined!")
-            return
-        traceroute_file = config[measurement]["traceroute"]
-    else:
-        print("City not defined!")
-        return
     with open("../data/" + traceroute_file, "r") as trace_data:
         traceroutes = json.load(trace_data)
+
     mapping_asn_traces = defaultdict(list)
     for trace in traceroutes:
         if lib.is_timestamp_between(start_time , end_time, trace["endtime"]):
             mapping_asn_traces[trace["origin_asn"]].append(trace)
-    for asn in mapping_asn_traces:
-        mapping_asn_traces[asn] = sorted(mapping_asn_traces[asn], key=lambda x: x["endtime"])
-        assert mapping_asn_traces[asn][0]["endtime"] <= mapping_asn_traces[asn][-1]["endtime"]
 
-    # Load classification file
-    with open("../data/" + classification_file, "r") as class_data:
-            classification = json.load(class_data)
-    
-    # Initial classification
-    drop_invalid, ignore_roa, prefer_valid, protected = classification_list(classification, city)
-    total_ignore, total_prefer, total_protected, total_drop = 0, 0, 0, 0
+    with open("../data/classification_%s.json" % opts.measurement, "r") as classification_fd:
+        classification = json.load(classification_fd)
+
+
+    drop_invalid, ignore_roa, prefer_valid, protected = get_last_classification(classification, opts.city)
+    classification[opts.city]["null"] = []
+    classification[opts.city]["private"] = []
+
     round = 1
     while True:
-        # Define variables for calculate ASNs
-        calc_ignore, calc_prefer, calc_protected, calc_drop = 0, 0, 0, 0
+
+        calc_ignore = 0
+        calc_prefer = 0
+        calc_protected = 0
+        calc_drop = 0
 
         for asn in mapping_asn_traces:
             if str(asn) not in ignore_roa and str(asn) not in drop_invalid and str(asn) not in prefer_valid and str(asn) not in protected:
-                if  in_list(asn, mapping_asn_traces, ignore_roa, "138.185.228.1") and \
-                    assert_no_route(asn, mapping_asn_traces, "138.185.229.1") and \
-                    (in_list(asn, mapping_asn_traces, drop_invalid, "138.185.230.1") or in_list(asn, mapping_asn_traces, protected, "138.185.230.1"))and \
-                    (in_list(asn, mapping_asn_traces, drop_invalid, "138.185.231.1") or in_list(asn, mapping_asn_traces, protected, "138.185.231.1")): # or protected or prefer
-                        classification[city][str(asn)] = "drop-invalid"
-                        drop_invalid.append(str(asn))
+                if  in_list(asn, mapping_asn_traces, ignore_roa, P2) and \
+                    assert_no_route(asn, mapping_asn_traces, P4) and \
+                    (in_list(asn, mapping_asn_traces, drop_invalid, P5) or in_list(asn, mapping_asn_traces, protected, P5))and \
+                    (in_list(asn, mapping_asn_traces, drop_invalid, P3) or in_list(asn, mapping_asn_traces, protected, P3)):
+                        classification[opts.city][str(asn)] = "drop-invalid"
                         calc_drop += 1
-                elif in_list(asn, mapping_asn_traces, ignore_roa, "138.185.228.1") and \
-                    (in_list(asn, mapping_asn_traces, drop_invalid, "138.185.230.1") or in_list(asn, mapping_asn_traces, protected, "138.185.230.1")) and \
-                    in_list(asn, mapping_asn_traces, ignore_roa, "138.185.229.1") and \
-                    not in_list(asn, mapping_asn_traces, ignore_roa, "138.185.231.1") and \
-                    (in_list(asn, mapping_asn_traces, drop_invalid, "138.185.231.1") or in_list(asn, mapping_asn_traces, protected, "138.185.231.1")):
-                        classification[city][str(asn)] = "prefer-valid"
-                        prefer_valid.append(str(asn))
+                elif in_list(asn, mapping_asn_traces, ignore_roa, P2) and \
+                    (in_list(asn, mapping_asn_traces, drop_invalid, P5) or in_list(asn, mapping_asn_traces, protected, P5)) and \
+                    in_list(asn, mapping_asn_traces, ignore_roa, P4) and \
+                    not in_list(asn, mapping_asn_traces, ignore_roa, P3) and \
+                    (in_list(asn, mapping_asn_traces, drop_invalid, P3) or in_list(asn, mapping_asn_traces, protected, P3)):
+                        classification[opts.city][str(asn)] = "prefer-valid"
                         calc_prefer += 1
-                elif in_list(asn, mapping_asn_traces, ignore_roa, "138.185.228.1") and \
-                    in_list(asn, mapping_asn_traces, ignore_roa, "138.185.230.1") and \
-                    in_list(asn, mapping_asn_traces, ignore_roa, "138.185.229.1") and \
-                    not (in_list(asn, mapping_asn_traces, drop_invalid, "138.185.229.1") or in_list(asn, mapping_asn_traces, protected, "138.185.229.1")) and \
-                    (in_list(asn, mapping_asn_traces, drop_invalid, "138.185.231.1") or in_list(asn, mapping_asn_traces, protected, "138.185.231.1")): #or protected or prefer
-                        classification[city][str(asn)] = "ignore-roa"
-                        ignore_roa.append(str(asn))
+                elif in_list(asn, mapping_asn_traces, ignore_roa, P2) and \
+                    in_list(asn, mapping_asn_traces, ignore_roa, P5) and \
+                    in_list(asn, mapping_asn_traces, ignore_roa, P4) and \
+                    not (in_list(asn, mapping_asn_traces, drop_invalid, P4) or in_list(asn, mapping_asn_traces, protected, P4)) and \
+                    (in_list(asn, mapping_asn_traces, drop_invalid, P3) or in_list(asn, mapping_asn_traces, protected, P3)): #or protected or prefer
+                        classification[opts.city][str(asn)] = "ignore-roa"
                         calc_ignore += 1
-                elif (in_list(asn, mapping_asn_traces, protected, "138.185.228.1") or in_list(asn, mapping_asn_traces, drop_invalid, "138.185.228.1")) and \
-                    (in_list(asn, mapping_asn_traces, drop_invalid, "138.185.230.1") or in_list(asn, mapping_asn_traces, protected, "138.185.230.1")) and \
-                    assert_no_route(asn, mapping_asn_traces, "138.185.229.1") and \
-                    (in_list(asn, mapping_asn_traces, drop_invalid, "138.185.231.1") or in_list(asn, mapping_asn_traces, protected, "138.185.231.1")):
-                        classification[city][str(asn)] = "unknown-protected"
-                        protected.append(str(asn))
+                elif (in_list(asn, mapping_asn_traces, protected, P2) or in_list(asn, mapping_asn_traces, drop_invalid, P2)) and \
+                    (in_list(asn, mapping_asn_traces, drop_invalid, P5) or in_list(asn, mapping_asn_traces, protected, P5)) and \
+                    assert_no_route(asn, mapping_asn_traces, P4) and \
+                    (in_list(asn, mapping_asn_traces, drop_invalid, P3) or in_list(asn, mapping_asn_traces, protected, P3)):
+                        classification[opts.city][str(asn)] = "unknown-protected"
                         calc_protected += 1
 
-        # Break if no more classification
-        if calc_ignore == 0 and calc_prefer == 0 and calc_protected == 0 and calc_drop == 0:
-            break
 
         print(f"Round {round}")
         print(f"calc_prefer = {calc_prefer}")
         print(f"calc_ignore = {calc_ignore}")
         print(f"calc_protected = {calc_protected}")
         print(f"calc_drop = {calc_drop}\n")
+
+        # Break if no more classification
+        if calc_drop + calc_prefer + calc_ignore + calc_protected == 0:
+            print(f"No more classification for {opts.city}!")
+            break
         round += 1
-        total_ignore += calc_ignore
-        total_prefer += calc_prefer
-        total_protected += calc_protected
-        total_drop += calc_drop
 
-    print(f"Total New Classifications Found for {city}!")
-    print(f"Total prefer-valid = {total_prefer}")
-    print(f"Total ignore-roa = {total_ignore}")
-    print(f"Total unknown-protected = {total_protected}")
-    print(f"Total drop-invalid = {total_drop}")
+        drop_invalid, ignore_roa, prefer_valid, protected = get_last_classification(classification, opts.city)
 
-    # Save classification file
-    date = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    with open(f"../dump/classification_{city}_{date}.json", "w") as classification_data:
-        json.dump(classification, classification_data, indent = 4)
+    with open("../dump/classification_%s.json" %  opts.measurement, "w") as classification_fd_out:
+        json.dump(classification, classification_fd_out, indent = 4)
 
-main()
+if __name__ == "__main__":
+    sys.exit(main())
