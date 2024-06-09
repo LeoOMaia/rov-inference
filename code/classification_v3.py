@@ -225,7 +225,7 @@ def main():
         print("usage: process_classification_v3.py [measurement] [location]")
         return
 
-    with open("../times.json", "r") as times_f:
+    with open("../config.json", "r") as times_f:
         times_data = json.load(times_f)
 
     start_time = times_data[sys.argv[1]][sys.argv[2]]["start"]

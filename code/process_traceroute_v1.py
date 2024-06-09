@@ -2,6 +2,7 @@ from collections import defaultdict
 import sys
 import json
 import lib
+import datetime
 
 def in_list(asn, mapping_asn_traces, target_list, dst_ip):
     for trace in mapping_asn_traces[asn]:
@@ -20,14 +21,11 @@ def assert_no_route(asn, mapping_asn_traces, dst_ip):
                         return False
     return True
 
-def redefine_classification(classification_file, city):
-    with open("../data/" + classification_file + ".json", "r") as class_data:
-        classification = json.load(class_data)
+def redefine_classification(dict_classification, city):
+    dict_classification[city]["null"] = []
+    dict_classification[city]["private"] = []
 
-    classification[city]["null"] = []
-    classification[city]["private"] = []
-
-    city_classification = classification[city]
+    city_classification = dict_classification[city]
 
     drop_invalid = []
     ignore_roa = []
@@ -42,32 +40,34 @@ def redefine_classification(classification_file, city):
             prefer_valid.append(asn)
         if city_classification[asn] == "unknown-protected":
             protected.append(asn)
-    return classification, drop_invalid, ignore_roa, prefer_valid, protected
+    return dict_classification, drop_invalid, ignore_roa, prefer_valid, protected
 
 def main():
     # using arguments to specify the file
-    if len(sys.argv) != 3:
-        print("Usage: python3 process_traceroute_v1.py <measurement> <city>")
+    if len(sys.argv) != 4:
+        print("Usage: python3 process_traceroute_v1.py <classification_file> <measurement> <city>")
         sys.exit(1)
 
     classification_file = sys.argv[1]
-    city = sys.argv[2]
+    measurement = sys.argv[2]
+    city = sys.argv[3]
 
-    # time for mapping basing in the choosed city
-    with open("../times.json", "r") as times_f:
-        times_data = json.load(times_f)
-    start_time = times_data[classification_file][city]["start"]
-    end_time = times_data[classification_file][city]["end"]
-
-    # traceroute for mapping
     with open("../config.json", "r") as config_f:
         config = json.load(config_f)
-    for _ , dicts_informe in config:
-        if city in dicts_informe["location"] and dicts_informe["location"][city]["start"] == start_time and dicts_informe["location"][city]["end"] == end_time:
-            if not "tracerout" in dicts_informe:
-                print("Traceroute file not defined!")
-                sys.exit(1)
-            traceroute_file = dicts_informe["traceroute"]
+
+    # time for mapping basing in the choosed city
+    start_time = config[measurement][city]["start"]
+    end_time = config[measurement][city]["end"]
+
+    # traceroute for mapping
+    if city in config[measurement]:
+        if not "traceroute" in config[measurement]:
+            print("Traceroute file not defined!")
+            sys.exit(1)
+        traceroute_file = config[measurement]["traceroute"]
+    else:
+        print("City not defined!")
+        sys.exit(1)
     with open("../data/" + traceroute_file, "r") as trace_data:
         traceroutes = json.load(trace_data)
     mapping_asn_traces = defaultdict(list)
@@ -78,9 +78,18 @@ def main():
         mapping_asn_traces[asn] = sorted(mapping_asn_traces[asn], key=lambda x: x["endtime"])
         assert mapping_asn_traces[asn][0]["endtime"] <= mapping_asn_traces[asn][-1]["endtime"]
 
+    # Load classification file
+    date = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    with open("../data/" + classification_file, "r") as class_data:
+            classification = json.load(class_data)
+    
     round = 1
+    read = False
     while True:
-        classification, drop_invalid, ignore_roa, prefer_valid, protected = redefine_classification(classification_file, city)
+        if read:
+            with open("../dump/classification_" + city + date + ".json", "r") as classification_data:
+                classification = json.load(classification_data)
+        classification, drop_invalid, ignore_roa, prefer_valid, protected = redefine_classification(classification, city)
 
         # Define variables for calculate ASNs
         calc_ignore = 0
@@ -123,7 +132,7 @@ def main():
             break
 
         # Update json
-        with open("../data/" + classification_file + ".json", "w") as classification_data:
+        with open("../dump/classification_" + city + date + ".json", "w") as classification_data:
             json.dump(classification, classification_data, indent = 4)
 
         print(f"Round {round}")
@@ -132,5 +141,6 @@ def main():
         print(f"calc_protected = {calc_protected}")
         print(f"calc_drop = {calc_drop}\n")
         round += 1
+        read = True
 
 main()
