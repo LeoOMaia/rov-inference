@@ -289,8 +289,8 @@ def main():
     class_dict = {}
 
     # PEERING and Vultr's ASNs
-    class_dict["47065"] = "ignore-roa"
-    class_dict["61574"] = "ignore-roa"
+    class_dict[GOOD_ORIGIN] = "ignore-roa"
+    class_dict[BAD_ORIGIN] = "ignore-roa"
     class_dict["20473"] = "drop-invalid"
 
     corner_cases = {}
@@ -330,7 +330,7 @@ def main():
 
     if not os.path.exists(location):
         os.makedirs(location)
-    #print(class_dict)
+    print(class_dict)
     file = open(os.path.join(location, "classification"), 'wb')
     pickle.dump(class_dict, file)
 

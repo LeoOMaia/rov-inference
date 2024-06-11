@@ -1,7 +1,7 @@
 {
     "test_old": {
         "bgpdump": "bgpdump_2023-12-15T00:00:00.000000Z_2023-12-30T00:00:00.000000Z_updates_ris+views_roa_sorted.json",
-        "traceroute_file": "measurements_2023-12-19.json",
+        "traceroute_file": "measurements_2024-06-09.json",
 	"prefixes": {
             "non_invalid": "138.185.228.0/24",
             "invalid": "138.185.229.0/24",
