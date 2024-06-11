@@ -7,9 +7,10 @@ import sys
 import os
 import re
 import json
+import argparse
 
-BAD_ORIGIN = '61574'
-GOOD_ORIGIN = '47065'
+BAD_ORIGIN = '47065'
+GOOD_ORIGIN = '61574'
 
 def check_intersection(asn_t, p2, p5, p3, p1):
     intersection = list(set(p2[asn_t]) & set(p5[asn_t]) & set(p3[asn_t]) & set(p1[asn_t]))
@@ -72,7 +73,7 @@ def add_appends(data):
 def find_neighbors(asn_t, p5_neighbor):
 
     #caida asrel dataset
-    file_path = "20231201.as-rel.txt"
+    file_path = "../data/20231201.as-rel.txt"
 
     pattern = r'^(\d+)\|(\d+)\|(\d+)$'
 
@@ -217,20 +218,36 @@ def classification_phase2(asn_t, class_dict, corner_cases, total_corner_case, p2
             class_dict[asn_t] = "prefer-ignore"
             corner_cases[asn_t] = ("prefer-valid", "prefer-ignore")
 
-
+def create_parser():
+    desc = """Process BGP measurements"""
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument(
+        "--measurement",
+        dest="measurement",
+        action="store",
+        required=True,
+        help="Name of target measurement",
+    )
+    parser.add_argument(
+        "--city",
+        dest="city",
+        action="store",
+        required=True,
+        help="Measurement location",
+    )
+    return parser
 
 def main():
 
-    if len(sys.argv) != 3:
-        print("usage: process_classification_v3.py [measurement] [location]")
-        return
+    parser = create_parser()
+    opts = parser.parse_args()
 
-    with open("../config.json", "r") as times_f:
-        times_data = json.load(times_f)
+    with open("../config.json", "r") as config_fd:
+        config = json.load(config_fd)
 
-    start_time = times_data[sys.argv[1]][sys.argv[2]]["start"]
-    end_time = times_data[sys.argv[1]][sys.argv[2]]["end"]
-    base_dump = "bgpdump_2023-12-15T00:00:00.000000Z_2023-12-30T00:00:00.000000Z_updates_ris+views"
+    start_time = config[opts.measurement]["location"][opts.city]["start"]
+    end_time = config[opts.measurement]["location"][opts.city]["end"]
+    base_dump = os.path.join("../data/", config[opts.measurement]["bgpdump"])
 
     nicbr_dump = f"{base_dump}_roa_sorted.json"
 
@@ -247,10 +264,10 @@ def main():
     p5 = complete_routes(p5)
     p3 = complete_routes(p3)
 
-
     arin_dump = f"{base_dump}_no_roa_sorted.json"
 
     p1 = get_records(arin_dump, start_time, end_time, "204.9.170.0/24")
+
 
     p1 = complete_routes(p1)
 
@@ -309,12 +326,11 @@ def main():
     p3 = add_appends(p3)
     p1 = add_appends(p1)
 
-
-    location = sys.argv[2]
+    location = opts.city
 
     if not os.path.exists(location):
         os.makedirs(location)
-
+    #print(class_dict)
     file = open(os.path.join(location, "classification"), 'wb')
     pickle.dump(class_dict, file)
 

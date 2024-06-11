@@ -5,8 +5,7 @@ import lib
 import argparse
 
 def in_list(trace_tuple, target_list, dst_ip):
-    if trace_tuple[0] == dst_ip and str(trace_tuple[1][1]) in target_list: # if next_hop in target_list
-        print(trace_tuple[1][1], str(trace_tuple[1][1]))
+    if trace_tuple[0] == dst_ip and str(trace_tuple[1][1]) in target_list: # if .. and next_hop in target_list
         return True
     return False
 
@@ -25,6 +24,8 @@ def get_last_classification(dict_classification, city):
     protected = []
 
     for asn in dict_classification[city]:
+        if not asn.isdigit():
+            continue
         if dict_classification[city][asn] == "drop-invalid":
             drop_invalid.append(str(asn))
         if dict_classification[city][asn] == "ignore-roa":
@@ -118,7 +119,7 @@ def main():
             if asn not in ignore_roa and asn not in drop_invalid and asn not in prefer_valid and asn not in protected:
                 if  in_list(asn_trace[asn], ignore_roa, P2) and \
                     assert_no_route(asn_trace[asn], P4) and \
-                    (in_list(asn_trace[asn], drop_invalid, P5) or in_list(asn_trace[asn], protected, P5))and \
+                    (in_list(asn_trace[asn], drop_invalid, P5) or in_list(asn_trace[asn], protected, P5)) and \
                     (in_list(asn_trace[asn], drop_invalid, P3) or in_list(asn_trace[asn], protected, P3)):
                         classification[opts.city][str(asn)] = "drop-invalid"
                         calc_drop += 1
