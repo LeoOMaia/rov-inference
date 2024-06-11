@@ -4,17 +4,25 @@ import json
 import lib
 import argparse
 
-def in_list(trace_tuple, target_list, dst_ip):
-    if trace_tuple[0] == dst_ip and str(trace_tuple[1][1]) in target_list: # if .. and next_hop in target_list
-        return True
+def in_list(trace, target_list):
+    if len(trace["result"]) >= 2:
+        if str(trace["result"][1]) in target_list:
+            return True
     return False
 
-def assert_no_route(trace_tuple, dst_ip):
-    if trace_tuple[0] == dst_ip:
-        for i in range(1, len(trace_tuple[1])):
-            if str(trace_tuple[1][i]).isdigit():
-                return False
+def assert_no_route(trace):
+    if len(trace["result"]) < 2:
+        return False
+    for i in range(1, len(trace["result"])):
+        if str(trace["result"][i]).isdigit():
+            return False
     return True
+
+def origin(trace, origin):
+    if trace["result"] >= 2:
+        if trace["result"][-1] == origin or trace["result"][-2] == origin:
+            return True
+    return False
 
 def get_last_classification(dict_classification, city):
 
@@ -44,6 +52,9 @@ def get_stable_trace(asn_traceroute_list, threshold=2):
     if count < threshold or len(most_common_trace[1]) < 2:
         return None
     return (most_common_trace[0], list(most_common_trace[1]))
+
+def get_last_trace(asn_tracerout_list):
+    return asn_tracerout_list[-1]
 
 def create_parser():
     desc = """Process traceroute measurements"""
@@ -86,16 +97,18 @@ def main():
     with open("../data/" + traceroute_file, "r") as trace_data:
         traceroutes = json.load(trace_data)
 
+    asn_list = []
     # get all traceroutes by ASN
     mapping_asn_traces = defaultdict(list)
     for trace in traceroutes:
         if lib.is_timestamp_between(start_time , end_time, trace["endtime"]):
-            mapping_asn_traces[str(trace["origin_asn"])].append(trace)
+            mapping_asn_traces[(str(trace["origin_asn"]),trace["dst_addr"])].append(trace)
+            asn_list.append(str(trace["origin_asn"]))
 
     # get most stable tracerout by ASN
     asn_trace = {}
-    for asn in mapping_asn_traces:
-        asn_trace[asn] = get_stable_trace(mapping_asn_traces[asn])
+    for asn_dst in mapping_asn_traces:
+        asn_trace[asn_dst] = get_last_trace(mapping_asn_traces[asn_dst])
 
     with open("../data/classification_%s.json" % opts.measurement, "r") as classification_fd:
         classification = json.load(classification_fd)
@@ -113,32 +126,30 @@ def main():
         calc_protected = 0
         calc_drop = 0
 
-        for asn in asn_trace:
-            if not asn_trace[asn]:
-                continue
+        for asn in asn_list:
             if asn not in ignore_roa and asn not in drop_invalid and asn not in prefer_valid and asn not in protected:
-                if  in_list(asn_trace[asn], ignore_roa, P2) and \
-                    assert_no_route(asn_trace[asn], P4) and \
-                    (in_list(asn_trace[asn], drop_invalid, P5) or in_list(asn_trace[asn], protected, P5)) and \
-                    (in_list(asn_trace[asn], drop_invalid, P3) or in_list(asn_trace[asn], protected, P3)):
+                if (not (asn,P2) in asn_trace) or (not (asn,P3) in asn_trace) or (not (asn,P5) in asn_trace) or (not (asn,P4) in asn_trace):
+                    continue
+                if  in_list(asn_trace[(asn,P2)], ignore_roa) and \
+                    assert_no_route(asn_trace[(asn,P4)]) and \
+                    (in_list(asn_trace[(asn,P5)], drop_invalid) or in_list(asn_trace[(asn,P5)], protected)) and \
+                    (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)):
                         classification[opts.city][str(asn)] = "drop-invalid"
                         calc_drop += 1
-                elif in_list(asn_trace[asn], ignore_roa, P2) and \
-                    (in_list(asn_trace[asn], drop_invalid, P5) or in_list(asn_trace[asn], protected, P5)) and \
-                    in_list(asn_trace[asn], ignore_roa, P4) and \
-                    (in_list(asn_trace[asn], drop_invalid, P3) or in_list(asn_trace[asn], protected, P3)):
+                elif (in_list(asn_trace[(asn,P5)], drop_invalid) or in_list(asn_trace[(asn,P5)], protected)) and \
+                    in_list(asn_trace[(asn,P4)], ignore_roa) and \
+                    (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)): # missing P2 classification
                         classification[opts.city][str(asn)] = "prefer-valid"
                         calc_prefer += 1
-                elif in_list(asn_trace[asn], ignore_roa, P2) and \
-                    in_list(asn_trace[asn], ignore_roa, P5) and \
-                    in_list(asn_trace[asn], ignore_roa, P4) and \
-                    (in_list(asn_trace[asn], drop_invalid, P3) or in_list(asn_trace[asn], protected, P3)): #or protected or prefer
+                elif in_list(asn_trace[(asn,P5)], ignore_roa) and \
+                    in_list(asn_trace[(asn,P4)], ignore_roa) and \
+                    (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)): # missing P2 classification
                         classification[opts.city][str(asn)] = "ignore-roa"
                         calc_ignore += 1
-                elif (in_list(asn_trace[asn], protected, P2) or in_list(asn_trace[asn], drop_invalid, P2)) and \
-                    (in_list(asn_trace[asn], drop_invalid, P5) or in_list(asn_trace[asn], protected, P5)) and \
-                    assert_no_route(asn_trace[asn], P4) and \
-                    (in_list(asn_trace[asn], drop_invalid, P3) or in_list(asn_trace[asn], protected, P3)):
+                elif (in_list(asn_trace[(asn,P2)], protected) or in_list(asn_trace[(asn,P2)], drop_invalid)) and \
+                    (in_list(asn_trace[(asn,P5)], drop_invalid) or in_list(asn_trace[(asn,P5)], protected)) and \
+                    assert_no_route(asn_trace[(asn,P4)]) and \
+                    (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)):
                         classification[opts.city][str(asn)] = "unknown-protected"
                         calc_protected += 1
 

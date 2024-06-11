@@ -291,7 +291,7 @@ def main():
     # PEERING and Vultr's ASNs
     class_dict[GOOD_ORIGIN] = "ignore-roa"
     class_dict[BAD_ORIGIN] = "ignore-roa"
-    class_dict["20473"] = "drop-invalid"
+    class_dict["20473"] = "ignore-roa"
 
     corner_cases = {}
 
@@ -320,11 +320,11 @@ def main():
                 classification_phase2(p3[asn][i], class_dict, corner_cases, total_cases_phase1, p2, p4, p5, p3, p1)
 
     #return appends after classification
-    p2 = add_appends(p2)
-    p4 = add_appends(p4)
-    p5 = add_appends(p5)
-    p3 = add_appends(p3)
-    p1 = add_appends(p1)
+    #p2 = add_appends(p2)
+    #p4 = add_appends(p4)
+    #p5 = add_appends(p5)
+    #p3 = add_appends(p3)
+    #p1 = add_appends(p1)
 
     location = opts.city
 
