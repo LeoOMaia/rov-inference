@@ -19,8 +19,8 @@ def assert_no_route(trace):
     return True
 
 def origin(trace, origin):
-    if trace["result"] >= 2:
-        if trace["result"][-1] == origin or trace["result"][-2] == origin:
+    if len(trace["result"]) >= 2:
+        if str(trace["result"][-1]) == origin or str(trace["result"][-2]) == origin:
             return True
     return False
 
@@ -45,13 +45,13 @@ def get_last_classification(dict_classification, city):
     return drop_invalid, ignore_roa, prefer_valid, protected
 
 
-def get_stable_trace(asn_traceroute_list, threshold=2):
-    trace_list = [(trace["dst_addr"], tuple(trace['result'])) for trace in asn_traceroute_list]
-    counter = Counter(trace_list)
-    most_common_trace, count = counter.most_common(1)[0]
-    if count < threshold or len(most_common_trace[1]) < 2:
-        return None
-    return (most_common_trace[0], list(most_common_trace[1]))
+#def get_stable_trace(asn_traceroute_list, threshold=2):
+#    trace_list = [(trace["dst_addr"], tuple(trace['result'])) for trace in asn_traceroute_list]
+#    counter = Counter(trace_list)
+#    most_common_trace, count = counter.most_common(1)[0]
+#    if count < threshold or len(most_common_trace[1]) < 2:
+#        return None
+#    return (most_common_trace[0], list(most_common_trace[1]))
 
 def get_last_trace(asn_tracerout_list):
     return asn_tracerout_list[-1]
@@ -136,14 +136,16 @@ def main():
                     (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)):
                         classification[opts.city][str(asn)] = "drop-invalid"
                         calc_drop += 1
-                elif (in_list(asn_trace[(asn,P5)], drop_invalid) or in_list(asn_trace[(asn,P5)], protected)) and \
+                elif origin(asn_trace[(asn,P2)], "47065") and \
+                    (in_list(asn_trace[(asn,P5)], drop_invalid) or in_list(asn_trace[(asn,P5)], protected)) and \
                     in_list(asn_trace[(asn,P4)], ignore_roa) and \
-                    (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)): # missing P2 classification
+                    (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)):
                         classification[opts.city][str(asn)] = "prefer-valid"
                         calc_prefer += 1
-                elif in_list(asn_trace[(asn,P5)], ignore_roa) and \
+                elif origin(asn_trace[(asn,P2)], "47065") and \
+                    in_list(asn_trace[(asn,P5)], ignore_roa) and \
                     in_list(asn_trace[(asn,P4)], ignore_roa) and \
-                    (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)): # missing P2 classification
+                    (in_list(asn_trace[(asn,P3)], drop_invalid) or in_list(asn_trace[(asn,P3)], protected)):
                         classification[opts.city][str(asn)] = "ignore-roa"
                         calc_ignore += 1
                 elif (in_list(asn_trace[(asn,P2)], protected) or in_list(asn_trace[(asn,P2)], drop_invalid)) and \

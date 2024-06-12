@@ -9,8 +9,8 @@ import re
 import json
 import argparse
 
-BAD_ORIGIN = '47065'
-GOOD_ORIGIN = '61574'
+BAD_ORIGIN = '61574'
+GOOD_ORIGIN = '47065'
 
 def check_intersection(asn_t, p2, p5, p3, p1):
     intersection = list(set(p2[asn_t]) & set(p5[asn_t]) & set(p3[asn_t]) & set(p1[asn_t]))
@@ -291,7 +291,7 @@ def main():
     # PEERING and Vultr's ASNs
     class_dict[GOOD_ORIGIN] = "ignore-roa"
     class_dict[BAD_ORIGIN] = "ignore-roa"
-    class_dict["20473"] = "ignore-roa"
+    class_dict["20473"] = "drop-invalid"
 
     corner_cases = {}
 
