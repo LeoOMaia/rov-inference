@@ -1,7 +1,7 @@
 {
-    "test_old": {
+    "first_measurement": {
         "bgpdump": "bgpdump_2023-12-15T00:00:00.000000Z_2023-12-30T00:00:00.000000Z_updates_ris+views_roa_sorted.json",
-        "traceroute_file": "measurements_2024-06-09.json",
+        "traceroute_file": "measurements_2023-12-19.json",
 	"prefixes": {
             "non_invalid": "138.185.228.0/24",
             "invalid": "138.185.229.0/24",
@@ -26,9 +26,9 @@
             }
         }
     },
-    "traceroute_extended": {
+    "third_experiment": {
         "bgpdump": "bgpdump_2024-06-05T00:00:00.000000Z_2024-06-09T00:00:00.000000Z_updates_ris+views",
-        "traceroute_file": "measurements_2023-12-19.json",
+        "traceroute_file": "measurements_2023-06-09.json",
 	"prefixes": {
             "non_invalid": "138.185.228.0/24",
             "invalid": "138.185.229.0/24",
@@ -44,12 +44,12 @@
                 "end":  "2024-06-07T10:30:00.314722Z"
             },
             "ufmg": {
-                "start": "2024-06-06T18:00:00.253634Z",
-                "end":  "2024-06-06T19:30:00.265457Z"
+                "start": "2024-06-08T19:30:00.258823Z",
+                "end":  "2024-06-08T21:00:00.284014Z"
             },
             "saopaulo": {
-                "start": "2024-06-07T03:00:00.331019Z",
-                "end":  "2024-06-07T04:30:00.268091Z"
+                "start": "2024-06-08T19:30:00.258823Z",
+                "end":"2024-06-08T21:00:00.284014Z"
             }
         }
     }
