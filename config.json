@@ -1,6 +1,6 @@
 {
-    "first_measurement": {
-        "bgpdump": "bgpdump_2023-12-15T00:00:00.000000Z_2023-12-30T00:00:00.000000Z_updates_ris+views_roa_sorted.json",
+    "first_experiment": {
+        "bgpdump": "bgpdump_2023-12-15T00:00:00.000000Z_2023-12-30T00:00:00.000000Z_updates_ris+views",
         "traceroute_file": "measurements_2023-12-19.json",
 	"prefixes": {
             "non_invalid": "138.185.228.0/24",
@@ -23,6 +23,33 @@
             "london": {
                 "start": "2023-12-18T19:30:00.391815Z",
                 "end": "2023-12-18T21:00:00.399396Z"
+            }
+        }
+    },
+    "second_experiment": {
+        "bgpdump": "bgpdump_2023-12-15T00:00:00.000000Z_2023-12-30T00:00:00.000000Z_updates_ris+views",
+        "traceroute_file": "measurements_2023-12-23.json",
+	"prefixes": {
+            "non_invalid": "138.185.228.0/24",
+            "invalid": "138.185.229.0/24",
+            "valid": "138.185.231.0/24"
+        },
+        "location": {
+            "stockholm": {
+                "start": "2023-12-21T18:00:00.322533Z",
+                "end": "2023-12-21T20:30:00.338379Z"
+            },
+            "madrid": {
+                "start": "2023-12-21T21:00:00.308459Z",
+                "end":  "2023-12-21T22:30:00.331592Z"
+            },
+            "warsaw": {
+                "start":  "2023-12-22T03:00:00.342486Z",
+                "end": "2023-12-22T04:30:00.320735Z"
+            },
+            "london": {
+                "start":  "2023-12-22T00:00:00.472978Z",
+                "end":  "2023-12-22T01:30:00.361210Z"
             }
         }
     },
