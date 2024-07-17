@@ -10,7 +10,7 @@ import json
 import argparse
 from multiprocessing import Pool
 
-BAD_ORIGIN = "61574"
+BAD_ORIGIN = "61574" ## change after new exp
 GOOD_ORIGIN = "47065"
 
 MAX = 8
@@ -100,8 +100,6 @@ def find_neighbors(asn_t):
                 neighbors.append(match[1])
             elif asn_t == match[1]:
                 neighbors.append(match[0])
-            else:
-                print("Error!!")
     return neighbors
 
 
@@ -131,14 +129,18 @@ def relationship(asn1, asn2):
             else:
                 return "p2p"
 
-def is_valley_free(route):
+def is_valley_free(route, asn_t):
     index = route.index("47065") # get origin index in the route
-    route_wo_origin = route[:index] # remove origin
+    route_wo_origin = route[:index] # remove origin ("47065" or "47065, 61574")
+    # add asn_t on route to include asn target on valley free checking
+    if len(route_wo_origin) > 0 and route_wo_origin[0] != asn_t:
+        route_wo_origin.insert(0, asn_t)
 
     if len(route_wo_origin) < 3:
         return True
 
     # check wether valley-free is violated
+
 
     for i in range(len(route_wo_origin)-3, 0):
         if relationship(route_wo_origin[i], route_wo_origin[i+1]) == "prov-cli" \
@@ -152,6 +154,11 @@ def is_valley_free(route):
         if relationship(route_wo_origin[i], route_wo_origin[i+1]) == "prov-cli" \
         and relationship(route_wo_origin[i+1], route_wo_origin[i+2]) == "p2p":
             return False
+
+        if relationship(route_wo_origin[i], route_wo_origin[i+1]) == "p2p" \
+        and relationship(route_wo_origin[i+1], route_wo_origin[i+2]) == "cli-prov":
+            return False
+
     return True
 
 
@@ -170,7 +177,7 @@ def check_target_receive_route(asn_t, route, origin):
     if len(candidates) == 0:
         return False
     for c in candidates:
-        if not is_valley_free(route[c]):
+        if not is_valley_free(route[c], asn_t):
             return False
     return True
 
@@ -355,7 +362,7 @@ def classification(args):
 
     p1 = get_records(arin_dump, start_time, end_time, "204.9.170.0/24")
     p1 = complete_routes(p1)
-    p1 = integrate_traces(traceroutes, p2, start_time, end_time, "138.185.228.1")
+    p1 = integrate_traces(traceroutes, p2, start_time, end_time, "138.185.228.1") ##change after new exp
     p1 = complete_routes(p1)
 
     as_list = []
