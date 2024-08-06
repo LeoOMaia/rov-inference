@@ -13,7 +13,7 @@ from multiprocessing import Pool
 BAD_ORIGIN = "61574" ## change after new exp
 GOOD_ORIGIN = "47065"
 
-MAX = 8
+MAX = 8 # max processes running in parallel
 
 
 def check_intersection(asn_t, p2, p5, p3, p1):
@@ -472,10 +472,11 @@ def main():
 
     traceroute_file = config[opts.measurement]["traceroute_file"]
 
-    final_classification = defaultdict(dict)
+    if traceroute_file:
+        with open("../data/" + traceroute_file, "r") as trace_data:
+            traceroutes = json.load(trace_data)
 
-    with open("../data/" + traceroute_file, "r") as trace_data:
-        traceroutes = json.load(trace_data)
+    final_classification = defaultdict(dict)
 
     locations = []
     for city in config[opts.measurement]["location"]:
